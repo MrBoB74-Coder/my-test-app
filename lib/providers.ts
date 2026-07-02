@@ -58,8 +58,8 @@ export const PROVIDERS: Provider[] = [
     id: "liquid",
     name: "Liquid Intelligent Technologies",
     coverageUrl: "https://coverage.za.liquid.tech/coverage",
-    checkType: "manual",
-    notes: "Dedicated coverage map — API candidate for auto-check.",
+    checkType: "api",
+    notes: "Auto-checked via Liquid coverage API (lat/lng).",
   },
   {
     id: "mtn",
