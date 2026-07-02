@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PROVIDERS } from "@/lib/providers";
+import { geocodeAddress } from "@/lib/geocode";
 import { ADAPTERS } from "./adapters";
 
 // POST /api/feasibility
@@ -38,7 +39,22 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await adapter({ address, lat, lng });
+    // Adapters need coordinates; geocode if the caller didn't supply them.
+    let coords = { lat, lng };
+    if (coords.lat === undefined || coords.lng === undefined) {
+      const geo = await geocodeAddress(address);
+      if (!geo) {
+        return NextResponse.json({
+          providerId,
+          status: "unknown",
+          manual: false,
+          detail: "Could not geocode address",
+        });
+      }
+      coords = { lat: geo.lat, lng: geo.lng };
+    }
+
+    const result = await adapter({ address, lat: coords.lat, lng: coords.lng });
     return NextResponse.json({ providerId, manual: false, ...result });
   } catch (err) {
     return NextResponse.json({

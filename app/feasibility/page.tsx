@@ -32,6 +32,8 @@ function initialResults(): Results {
 export default function FeasibilityPage() {
   const [address, setAddress] = useState("");
   const [studyAddress, setStudyAddress] = useState<string | null>(null);
+  const [geo, setGeo] = useState<{ lat: number; lng: number; formattedAddress: string } | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
   const [results, setResults] = useState<Results>(initialResults);
   const [copied, setCopied] = useState(false);
 
@@ -45,6 +47,27 @@ export default function FeasibilityPage() {
     if (!trimmed) return;
     setStudyAddress(trimmed);
     setResults(initialResults());
+    setGeo(null);
+    setGeoError(null);
+
+    // Geocode once so every provider check uses the same coordinates.
+    let coords: { lat?: number; lng?: number } = {};
+    try {
+      const res = await fetch("/api/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: trimmed }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setGeo(data);
+        coords = { lat: data.lat, lng: data.lng };
+      } else {
+        setGeoError(data.error ?? "Could not locate address");
+      }
+    } catch {
+      setGeoError("Geocoding failed");
+    }
 
     // Fire auto-checks for any providers with an API adapter.
     for (const provider of PROVIDERS.filter((p) => p.checkType === "api")) {
@@ -52,7 +75,7 @@ export default function FeasibilityPage() {
       fetch("/api/feasibility", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: trimmed, providerId: provider.id }),
+        body: JSON.stringify({ address: trimmed, providerId: provider.id, ...coords }),
       })
         .then((res) => res.json())
         .then((data) =>
@@ -160,6 +183,16 @@ export default function FeasibilityPage() {
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-semibold">Results for: {studyAddress}</h2>
+                  {geo && (
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      Located: {geo.formattedAddress} ({geo.lat.toFixed(5)}, {geo.lng.toFixed(5)})
+                    </p>
+                  )}
+                  {geoError && (
+                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                      {geoError} — automated checks may be less accurate.
+                    </p>
+                  )}
                   <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                     {summary.feasible} feasible · {summary.notFeasible} not feasible ·{" "}
                     {summary.outstanding} outstanding
