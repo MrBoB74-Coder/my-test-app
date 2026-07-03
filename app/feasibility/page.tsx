@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import {
   PROVIDERS,
@@ -9,6 +9,7 @@ import {
   type FeasibilityStatus,
   type ProviderResult,
 } from "@/lib/providers";
+import { useAddressAutocomplete } from "./useAddressAutocomplete";
 
 const STATUS_STYLES: Record<FeasibilityStatus, string> = {
   pending:
@@ -37,6 +38,16 @@ export default function FeasibilityPage() {
   const [results, setResults] = useState<Results>(initialResults);
   const [copied, setCopied] = useState(false);
 
+  // Set when the user picks a Google autocomplete suggestion; cleared when they
+  // type manually. Lets us skip the server geocode and use the exact picked point.
+  const inputRef = useRef<HTMLInputElement>(null);
+  const selectedRef = useRef<{ lat: number; lng: number; formattedAddress: string } | null>(null);
+
+  useAddressAutocomplete(inputRef, ({ address: picked, lat, lng }) => {
+    setAddress(picked);
+    selectedRef.current = { lat, lng, formattedAddress: picked };
+  });
+
   function updateResult(id: string, patch: Partial<ProviderResult>) {
     setResults((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
   }
@@ -50,23 +61,30 @@ export default function FeasibilityPage() {
     setGeo(null);
     setGeoError(null);
 
-    // Geocode once so every provider check uses the same coordinates.
     let coords: { lat?: number; lng?: number } = {};
-    try {
-      const res = await fetch("/api/geocode", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: trimmed }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setGeo(data);
-        coords = { lat: data.lat, lng: data.lng };
-      } else {
-        setGeoError(data.error ?? "Could not locate address");
+    const picked = selectedRef.current;
+    if (picked) {
+      // User selected a Google suggestion — use that exact point, no extra geocode.
+      setGeo(picked);
+      coords = { lat: picked.lat, lng: picked.lng };
+    } else {
+      // Typed freely — geocode server-side so all providers share one coordinate.
+      try {
+        const res = await fetch("/api/geocode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address: trimmed }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setGeo(data);
+          coords = { lat: data.lat, lng: data.lng };
+        } else {
+          setGeoError(data.error ?? "Could not locate address");
+        }
+      } catch {
+        setGeoError("Geocoding failed");
       }
-    } catch {
-      setGeoError("Geocoding failed");
     }
 
     // Fire auto-checks for any providers with an API adapter.
@@ -161,12 +179,16 @@ export default function FeasibilityPage() {
 
           <form onSubmit={startStudy} className="mt-6 flex flex-col gap-3 sm:flex-row">
             <input
+              ref={inputRef}
               id="address"
               name="address"
               type="text"
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="e.g. 123 Main Rd, Sandton, Johannesburg"
+              onChange={(e) => {
+                setAddress(e.target.value);
+                selectedRef.current = null; // typing invalidates a prior pick
+              }}
+              placeholder="Start typing an address…"
               className="flex-1 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-950 shadow-sm outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-200 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-50 dark:focus:ring-zinc-700"
             />
             <button
@@ -177,7 +199,7 @@ export default function FeasibilityPage() {
             </button>
           </form>
           <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-            Google Maps address autocomplete coming next — for now, enter the full address.
+            Start typing and pick your address from the suggestions for the most accurate result.
           </p>
         </header>
 
