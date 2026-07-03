@@ -3,7 +3,8 @@
 // normalized result. Providers without an adapter fall through to a manual
 // response in route.ts.
 
-import type { FeasibilityStatus } from "@/lib/providers";
+import type { FeasibilityStatus, Offer } from "@/lib/providers";
+import { checkTelcotechCoverage } from "@/lib/telcotech";
 
 export interface AdapterInput {
   address: string;
@@ -14,52 +15,74 @@ export interface AdapterInput {
 export interface AdapterResult {
   status: FeasibilityStatus;
   detail?: string;
+  /** Aggregator providers return the list of available networks here. */
+  offers?: Offer[];
 }
 
 type Adapter = (input: AdapterInput) => Promise<AdapterResult>;
 
-const UUID = () => crypto.randomUUID();
+// telcotech powers both Liquid and Herotel coverage checkers (different
+// subdomains, same GetNetworkTypes endpoint). One shared key works across them.
+const TELCOTECH_KEY = process.env.TELCOTECH_API_KEY ?? process.env.LIQUID_API_KEY ?? "";
 
-// --- Liquid Intelligent Technologies ---------------------------------------
-// Endpoint discovered from coverage.za.liquid.tech: it queries
-// liquidcoverage-api.telcotech.co/Data/GetNetworkTypes with lat/lng and two
-// headers — a static ApiKey (shipped in the site's JS, set via LIQUID_API_KEY)
-// and a per-device GUID (any random UUID works). A non-empty networkTypes
-// array means coverage is available at that point.
+// --- Liquid Intelligent Technologies (telcotech) ---------------------------
 async function liquid({ lat, lng }: AdapterInput): Promise<AdapterResult> {
   if (lat === undefined || lng === undefined) {
     return { status: "unknown", detail: "No coordinates to check" };
   }
-  const apiKey = process.env.LIQUID_API_KEY;
-  if (!apiKey) {
-    return { status: "unknown", detail: "LIQUID_API_KEY not configured" };
-  }
+  const res = await checkTelcotechCoverage("liquidcoverage-api.telcotech.co", lat, lng, TELCOTECH_KEY);
+  if (res.error) return { status: "unknown", detail: `Liquid: ${res.error}` };
+  return {
+    status: res.available ? "feasible" : "not-feasible",
+    detail: res.available ? "" : "No Liquid coverage at this location",
+    offers: res.offers,
+  };
+}
 
-  const url = `https://liquidcoverage-api.telcotech.co/Data/GetNetworkTypes?Latitude=${lat}&Longitude=${lng}`;
-  const res = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      ApiKey: apiKey,
-      DeviceIdentifier: UUID(),
-    },
-  });
+// --- Axxess (official Reseller API) ----------------------------------------
+// Uses the Axxess Business Partner API to check fibre availability. Requires
+// AXXESS_* credentials in the environment (see .env.example). Falls back to a
+// manual note if not configured. (Superseded the earlier Playwright scraper.)
+async function axxess({ address, lat, lng }: AdapterInput): Promise<AdapterResult> {
+  if (!process.env.AXXESS_CP_USER) {
+    return {
+      status: "pending",
+      detail: "Axxess API not configured — check manually.",
+    };
+  }
+  if (lat === undefined || lng === undefined) {
+    return { status: "unknown", detail: "No coordinates to check" };
+  }
+  const { checkFibreFeasibility } = await import("@/lib/axxess/feasibility");
+  const res = await checkFibreFeasibility(lat, lng, address);
+  if (res.error) {
+    return { status: "unknown", detail: `Axxess API: ${res.error}` };
+  }
+  return {
+    status: res.available ? "feasible" : "not-feasible",
+    detail: res.available ? "" : "No Axxess fibre at this address",
+    offers: res.offers,
+  };
+}
 
-  if (res.status === 401) {
-    return { status: "unknown", detail: "Liquid API rejected the key (401)" };
+// --- Herotel (telcotech) ---------------------------------------------------
+// Herotel's checker is the same telcotech platform as Liquid, at
+// herotel-api.telcotech.co. Coordinate-based; no scraping needed.
+async function herotel({ lat, lng }: AdapterInput): Promise<AdapterResult> {
+  if (lat === undefined || lng === undefined) {
+    return { status: "unknown", detail: "No coordinates to check" };
   }
-  if (!res.ok) {
-    return { status: "unknown", detail: `Liquid API returned ${res.status}` };
-  }
-
-  const data = await res.json();
-  const nets: Array<{ name?: string }> = data?.networkTypes ?? [];
-  if (nets.length > 0) {
-    const names = nets.map((n) => n.name).filter(Boolean).join(", ");
-    return { status: "feasible", detail: names || "Coverage available" };
-  }
-  return { status: "not-feasible", detail: "No Liquid coverage at this location" };
+  const res = await checkTelcotechCoverage("herotel-api.telcotech.co", lat, lng, TELCOTECH_KEY);
+  if (res.error) return { status: "unknown", detail: `Herotel: ${res.error}` };
+  return {
+    status: res.available ? "feasible" : "not-feasible",
+    detail: res.available ? "" : "No Herotel coverage at this location",
+    offers: res.offers,
+  };
 }
 
 export const ADAPTERS: Record<string, Adapter> = {
   liquid,
+  axxess,
+  herotel,
 };

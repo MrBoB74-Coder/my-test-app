@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
     // doesn't confuse Next.js.
     root: __dirname,
   },
+  // Keep playwright out of the server bundle — it's loaded at runtime only.
+  serverExternalPackages: ["playwright"],
 };
 
 export default nextConfig;

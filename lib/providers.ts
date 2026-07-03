@@ -30,6 +30,20 @@ export interface ProviderResult {
   /** Monthly price, captured manually */
   price: string;
   notes: string;
+  /**
+   * For aggregator providers (Axxess, Vox) that return several available
+   * networks/products for one address. Rendered as an expanded list under
+   * the provider row. Empty for single-result providers like Liquid.
+   */
+  offers?: Offer[];
+}
+
+/** One available network/product returned by an aggregator provider. */
+export interface Offer {
+  /** Network or product name, e.g. "Openserve", "Vuma Fibre Reach" */
+  network: string;
+  /** Speed label, e.g. "30/30 Mbps". Optional — some checkers omit it. */
+  speed?: string;
 }
 
 export const PROVIDERS: Provider[] = [
@@ -44,8 +58,8 @@ export const PROVIDERS: Provider[] = [
     id: "herotel",
     name: "Herotel Business",
     coverageUrl: "https://herotelbusiness.com/check-coverage/",
-    checkType: "manual",
-    notes: "Address-based coverage checker.",
+    checkType: "api",
+    notes: "Auto-checked via telcotech coverage API (lat/lng).",
   },
   {
     id: "vox",
@@ -79,8 +93,8 @@ export const PROVIDERS: Provider[] = [
     id: "axxess",
     name: "Axxess",
     coverageUrl: "https://www.axxess.co.za/find-internet-services",
-    checkType: "manual",
-    notes: "Multi-network availability search — API candidate.",
+    checkType: "api",
+    notes: "Multi-network aggregator — auto-checked via headless browser when enabled.",
   },
 ];
 

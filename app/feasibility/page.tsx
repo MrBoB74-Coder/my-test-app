@@ -82,6 +82,7 @@ export default function FeasibilityPage() {
           updateResult(provider.id, {
             status: data.status ?? "unknown",
             notes: data.detail ?? "",
+            offers: data.offers ?? undefined,
           })
         )
         .catch(() => updateResult(provider.id, { status: "unknown" }));
@@ -100,8 +101,11 @@ export default function FeasibilityPage() {
     ];
     for (const p of PROVIDERS) {
       const r = results[p.id];
+      const pkg = r.offers && r.offers.length > 0
+        ? r.offers.map((o) => o.speed ? `${o.network} (${o.speed})` : o.network).join("; ")
+        : r.packageInfo || "—";
       lines.push(
-        `| ${p.name} | ${STATUS_LABELS[r.status]} | ${r.packageInfo || "—"} | ${r.price || "—"} | ${r.notes || "—"} |`
+        `| ${p.name} | ${STATUS_LABELS[r.status]} | ${pkg} | ${r.price || "—"} | ${r.notes || "—"} |`
       );
     }
     return lines.join("\n");
@@ -252,6 +256,23 @@ export default function FeasibilityPage() {
                         <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                           {provider.notes}
                         </p>
+                      )}
+                      {r.offers && r.offers.length > 0 && (
+                        <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+                          <div className="grid grid-cols-2 gap-2 bg-zinc-50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+                            <span>Network / product</span>
+                            <span>Speed</span>
+                          </div>
+                          {r.offers.map((offer, i) => (
+                            <div
+                              key={i}
+                              className="grid grid-cols-2 gap-2 border-t border-zinc-200 px-4 py-2 text-sm dark:border-zinc-800"
+                            >
+                              <span className="text-zinc-900 dark:text-zinc-100">{offer.network}</span>
+                              <span className="text-zinc-600 dark:text-zinc-300">{offer.speed || "—"}</span>
+                            </div>
+                          ))}
+                        </div>
                       )}
                       <div className="mt-4 grid gap-3 sm:grid-cols-4">
                         <label className="grid gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-300">
