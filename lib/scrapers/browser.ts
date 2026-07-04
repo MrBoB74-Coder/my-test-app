@@ -14,7 +14,6 @@ export const HEADLESS_ENABLED = process.env.ENABLE_HEADLESS_SCRAPERS === "true";
 // Returns a launched Chromium browser, or null if playwright isn't available.
 export async function launchBrowser() {
   try {
-    // @ts-ignore - playwright is an optional dependency
     const { chromium } = await import("playwright");
     return await chromium.launch({ headless: true });
   } catch {
