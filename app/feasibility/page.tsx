@@ -157,12 +157,12 @@ export default function FeasibilityPage() {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-950 dark:bg-black dark:text-zinc-50">
-      <main className="mx-auto flex min-h-screen max-w-6xl flex-col gap-8 px-6 py-12 sm:px-8 lg:px-12">
+    <div className="text-brand-navy">
+      <main className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-10 sm:px-8 lg:px-12">
         <header className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-sm uppercase tracking-[0.24em] text-zinc-500 dark:text-zinc-400">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-red">
                 Feasibility Study
               </p>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -171,7 +171,7 @@ export default function FeasibilityPage() {
             </div>
             <Link
               href="/"
-              className="inline-flex items-center justify-center rounded-full border border-zinc-950 px-5 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-100 dark:border-zinc-50 dark:text-zinc-50 dark:hover:bg-zinc-900"
+              className="inline-flex items-center justify-center rounded-full border border-brand-navy/30 px-5 py-2.5 text-sm font-semibold text-brand-navy transition hover:bg-zinc-100"
             >
               Back to Home
             </Link>
@@ -193,7 +193,7 @@ export default function FeasibilityPage() {
             />
             <button
               type="submit"
-              className="inline-flex items-center justify-center rounded-2xl bg-zinc-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200"
+              className="inline-flex items-center justify-center rounded-2xl bg-brand-navy px-6 py-3 text-sm font-semibold text-white transition hover:bg-brand-navy-700"
             >
               {studyAddress ? "Restart study" : "Start study"}
             </button>
