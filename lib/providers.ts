@@ -79,8 +79,8 @@ export const PROVIDERS: Provider[] = [
     id: "mtn",
     name: "MTN Air Fibre",
     coverageUrl: "https://fibre.mtn.co.za/home",
-    checkType: "manual",
-    notes: "Fixed wireless / air fibre availability — API candidate.",
+    checkType: "api",
+    notes: "Auto-checked via headless browser (interim) when enabled.",
   },
   {
     id: "bitco",

@@ -81,8 +81,27 @@ async function herotel({ lat, lng }: AdapterInput): Promise<AdapterResult> {
   };
 }
 
+// --- MTN (interim headless scraper) ----------------------------------------
+// Runs only when ENABLE_HEADLESS_SCRAPERS=true and playwright is installed.
+// Drives fibre.mtn.co.za and reads the covered/no-packages result. Bridge until
+// official API access; portable into the future Docker scraper service.
+async function mtn({ address }: AdapterInput): Promise<AdapterResult> {
+  if (process.env.ENABLE_HEADLESS_SCRAPERS !== "true") {
+    return { status: "pending", detail: "Automated MTN check disabled — check manually." };
+  }
+  const { scrapeMtn } = await import("@/lib/scrapers/mtn");
+  const res = await scrapeMtn(address);
+  if (res.error) return { status: "unknown", detail: `MTN scrape: ${res.error}` };
+  return {
+    status: res.available ? "feasible" : "not-feasible",
+    detail: res.available ? "" : "No MTN fibre at this address",
+    offers: res.offers,
+  };
+}
+
 export const ADAPTERS: Record<string, Adapter> = {
   liquid,
   axxess,
   herotel,
+  mtn,
 };
